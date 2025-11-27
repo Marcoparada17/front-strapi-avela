@@ -21,11 +21,9 @@ export default function ProductPage() {
 useEffect(() => {
   async function load() {
     try {
-      const r = await fetch(
-        `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/traje-de-banos?filters[SKU][$eq]=${slug}&populate=*`
+      const json = await strapiFetch(
+        `/traje-de-banos?filters[SKU][$eq]=${slug}&populate=Imagenes`
       );
-
-      const json = await r.json();
 
       console.log("STRAPI RAW →", JSON.stringify(json, null, 2));
 
