@@ -1,20 +1,15 @@
-"use client";
-
-import useSWR from "swr";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import Footer from "./components/Footer";
-import ProductCard from "./components/ProductCard"; // usar tu card estilizada
+import ProductCard from "./components/ProductCard";
+import { strapiFetch } from "@/lib/strapi";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export default function Home() {
-  const { data, error } = useSWR(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/products?sort=-createdAt`,
-    fetcher
+export default async function Home() {
+  const res = await strapiFetch(
+    "/traje-de-banos?populate=Imagenes"
   );
 
-  const productos = data?.docs || [];
+  const productos = res?.data || [];
 
   return (
     <>
@@ -40,10 +35,6 @@ export default function Home() {
           </a>
         </div>
 
-        {error && <p>Error cargando productos…</p>}
-        {!data && <p>Cargando productos…</p>}
-
-        {/* 🔥 SOLO 3 PRODUCTOS SIEMPRE */}
         <div
           style={{
             display: "grid",
@@ -52,18 +43,18 @@ export default function Home() {
           }}
         >
           {productos.slice(0, 4).map((p: any) => {
-            const url = p.gallery?.[0]?.image?.url;
-            const img = url?.startsWith("http")
-              ? url
-              : `${process.env.NEXT_PUBLIC_API_URL}${url}`;
+            const img =
+              p.Imagenes?.[0]?.formats?.medium?.url ||
+              p.Imagenes?.[0]?.url ||
+              null;
 
             return (
               <ProductCard
                 key={p.id}
-                title={p.title}
-                price={p.priceInUSD}
+                title={p.Nombre}
+                price={p.Precio}
                 image={img}
-                slug={p.slug}
+                slug={String(p.SKU)}
               />
             );
           })}

@@ -1,6 +1,6 @@
 export const metadata = {
   title: "Avela Store",
-  description: "Tienda minimalista con Payload + Next.js",
+  description: "Tu mejor opcion en moda playera",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

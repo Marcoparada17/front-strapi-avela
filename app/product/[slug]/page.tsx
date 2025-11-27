@@ -1,264 +1,290 @@
 "use client";
 
-
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import useSWR from "swr";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { strapiFetch } from "@/lib/strapi";
 
 export default function ProductPage() {
   const { slug } = useParams();
+  const router = useRouter();
 
-  // ==============================
-  // SWR PRIMERO — SIEMPRE
-  // ==============================
-  const { data, error } = useSWR(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/products?where[slug][equals]=${slug}`,
-    fetcher
-  );
+  const [product, setProduct] = useState<any>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
 
-  // ==============================
-  // ESTADOS QUE DEPENDEN DEL FETCH
-  // (NO SE HACEN RETURNS ANTES)
-  // ==============================
-  const [selectedImg, setSelectedImg] = useState<string | null>(null);
-  const [gallery, setGallery] = useState<string[]>([]);
+  // swipe refs
+  const startX = useRef<number | null>(null);
+  const dragging = useRef(false);
 
-  // ==============================
-  // CUANDO LA DATA LLEGA, ARMAMOS LA GALERÍA
-  // ==============================
-  useEffect(() => {
-    if (!data?.docs?.[0]) return;
+useEffect(() => {
+  async function load() {
+    try {
+      const r = await fetch(
+        `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/traje-de-banos?filters[SKU][$eq]=${slug}&populate=*`
+      );
 
-    const product = data.docs[0];
+      const json = await r.json();
 
-    const imgs = (product.gallery || []).map((g: any) => {
-      const url = g.image?.url || "";
-      return url.startsWith("http")
-        ? url
-        : `${process.env.NEXT_PUBLIC_API_URL}${url}`;
-    });
+      console.log("STRAPI RAW →", JSON.stringify(json, null, 2));
 
-    setGallery(imgs);
-    setSelectedImg(imgs[0] || null);
-  }, [data]);
+      const item = json.data?.[0] || null;
+      setProduct(item);
+    } catch (err) {
+      console.error("ERROR FETCHING:", err);
+    }
+  }
 
-  // ==============================
-  // MANEJO DE ESTADOS DE CARGA / ERROR
-  // (YA DESPUÉS DE DEFINIR HOOKS)
-  // ==============================
-  if (error)
-    return <p style={{ color: "white", padding: 40 }}>Error cargando…</p>;
+  load();
+}, [slug]);
 
-  if (!data)
+  if (!product)
     return <p style={{ color: "white", padding: 40 }}>Cargando…</p>;
 
-  const p = data.docs?.[0];
+  const gallery = product.Imagenes || [];
 
-  if (!p)
-    return <p style={{ color: "white", padding: 40 }}>Producto no encontrado.</p>;
+  // =============================================
+  // SAFE GET IMAGE (FUNCIONA PARA TODAS LAS IMÁGENES)
+  // =============================================
+  const getImage = (img: any) => {
+    const formats = img.formats || {};
 
-  if (!selectedImg)
-    return <p style={{ color: "white", padding: 40 }}>Cargando imágenes…</p>;
+    return (
+      formats.medium?.url ||
+      formats.small?.url ||
+      formats.thumbnail?.url ||
+      img.url
+    );
+  };
 
-  // ==============================
-  // SLIDER
-  // ==============================
-  const index = gallery.indexOf(selectedImg);
+  // =============================================
+  // SWIPE HANDLERS (CARRUSEL + FULLSCREEN)
+  // =============================================
+  const swipeStart = (clientX: number) => {
+    dragging.current = true;
+    startX.current = clientX;
+  };
 
-  const goNext = () => {
-    if (index < gallery.length - 1) {
-      setSelectedImg(gallery[index + 1]);
+  const swipeMove = (clientX: number) => {
+    if (!dragging.current || startX.current === null) return;
+
+    const delta = clientX - startX.current;
+
+    if (delta > 80 && selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+      dragging.current = false;
+    }
+    if (delta < -80 && selectedIndex < gallery.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+      dragging.current = false;
     }
   };
 
-  const goPrev = () => {
-    if (index > 0) {
-      setSelectedImg(gallery[index - 1]);
-    }
+  const swipeEnd = () => {
+    dragging.current = false;
+    startX.current = null;
   };
 
   return (
     <>
       <Navbar />
 
+      {/* BACK BUTTON */}
+      <div style={{ padding: "100px 20px 0 20px" }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            background: "transparent",
+            color: "white",
+            border: "none",
+            fontSize: "2rem",
+            cursor: "pointer",
+            marginBottom: 20,
+          }}
+        >
+          ←
+        </button>
+      </div>
+
+      {/* MAIN WRAPPER */}
       <div
         style={{
-          padding: "130px 30px",
-          maxWidth: 900,
-          margin: "0 auto",
+          padding: "0 40px 120px 40px",
           color: "white",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
-        
-        {/* ============================== */}
-        {/* IMAGEN PRINCIPAL + ZOOM + FLECHAS */}
-        {/* ============================== */}
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            overflow: "hidden",
-            borderRadius: 12,
-            marginBottom: 25,
-          }}
-
-          
-        >
-          {index > 0 && (
-
-            
-            <button
-              onClick={goPrev}
-              style={{
-                position: "absolute",
-                left: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "rgba(0,0,0,0.5)",
-                color: "white",
-                border: "none",
-                padding: "10px 14px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 22,
-                zIndex: 10,
-              }}
-            >
-              ‹
-            </button>
-          )}
-        
-         <img
-  src={selectedImg}
-  alt={p.title}
+        {/* =============================== */}
+        {/* CARRUSEL CON SWIPE */}
+        {/* =============================== */}
+       <div
   style={{
     width: "100%",
-    height: "100%",          // 🔥 altura uniforme
-    objectFit: "contain",       // 🔥 recorta para que encaje perfecta
-    display: "block",
+    maxWidth: 420,
+    overflow: "hidden",
     borderRadius: 12,
-    transition: "transform .3s ease",
-  }}
-  onMouseEnter={(e) => {
-    if (window.innerWidth > 768) {
-      e.currentTarget.style.transform = "scale(1.06)";
-    }
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.transform = "scale(1)";
-  }}
-/>
-
-
-          {index < gallery.length - 1 && (
-            <button
-              onClick={goNext}
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "rgba(0,0,0,0.5)",
-                color: "white",
-                border: "none",
-                padding: "10px 14px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 22,
-                zIndex: 10,
-              }}
-            >
-              ›
-            </button>
-          )}
-        </div>
-
-        {/* ============================== */}
-        {/* MINIATURAS */}
-        {/* ============================== */}
-        {gallery.length > 1 && (
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              marginBottom: 25,
-              overflowX: "auto",
-              paddingBottom: 10,
-            }}
-          >
-            {gallery.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                onClick={() => setSelectedImg(img)}
-                style={{
-                  width: 90,
-                  height: 90,
-                  objectFit: "cover",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  border:
-                    selectedImg === img
-                      ? "2px solid #32cd32"
-                      : "2px solid transparent",
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* ============================== */}
-        {/* INFO DEL PRODUCTO */}
-        {/* ============================== */}
-        <h1 style={{ fontSize: "2rem", marginBottom: 10 }}>{p.title}</h1>
-
-        <p
-          style={{
-            fontSize: "1.6rem",
-            fontWeight: "bold",
-            color: "#32cd32",
-            marginBottom: 25,
-          }}
-        >
-          ${p.priceInUSD}
-        </p>
-
-       {/* DESCRIPCIÓN */}
-<h3 style={{ marginBottom: 10 }}>Descripción</h3>
-
-<p style={{ opacity: 0.9 }}>
-  {p.description?.root?.children
-    ?.map((block: any) =>
-      block.children?.map((child: any) => child.text).join(" ")
-    )
-    .join("\n") || "Sin descripción disponible."}
-</p>
-
-<a
-  href={`https://wa.link/cd114w`}
-  target="_blank"
-  style={{
-    display: "inline-block",
-    background: "#ffffffff",
-    color: "Black",
-    padding: "12px 20px",
-    borderRadius: 8,
-    fontSize: "1.2rem",
-    fontWeight: "bold",
-    textDecoration: "none",
-    marginTop: 20,
+    marginBottom: 20,
+    touchAction: "pan-y",
   }}
 >
-  Comprar
-</a>
+  <div
+    style={{
+      display: "flex",
+      transform: `translateX(-${selectedIndex * 100}%)`,
+      transition: "transform .25s ease",
+    }}
+    onTouchStart={(e) => swipeStart(e.touches[0].clientX)}
+    onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
+    onTouchEnd={swipeEnd}
+    onMouseDown={(e) => swipeStart(e.clientX)}
+    onMouseMove={(e) => {
+      if (dragging.current) {
+        e.preventDefault();
+        swipeMove(e.clientX);
+      }
+    }}
+    onMouseUp={swipeEnd}
+    onMouseLeave={swipeEnd}
+  >
+    {gallery.map((img: any, i: number) => (
+      <div
+        key={i}
+        style={{
+          flex: "0 0 100%",   // 🔥 CADA SLIDE OCUPA SU ANCHO EXACTO
+        }}
+      >
+        <img
+          onClick={() => setFullscreen(true)}
+          src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+          style={{
+            width: "100%",
+            height: 420,
+            objectFit: "cover",
+            userSelect: "none",
+            cursor: "pointer",
+          }}
+          draggable={false}
+        />
+      </div>
+    ))}
+  </div>
+</div>
 
+        {/* =============================== */}
+        {/* MINIATURAS */}
+        {/* =============================== */}
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 30,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          {gallery.map((img: any, i: number) => (
+            <img
+              key={i}
+              src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+              onClick={() => setSelectedIndex(i)}
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 8,
+                objectFit: "cover",
+                cursor: "pointer",
+                border:
+                  selectedIndex === i
+                    ? "2px solid #32cd32"
+                    : "2px solid transparent",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* PRODUCT INFO */}
+        <div
+          style={{
+            maxWidth: 500,
+            width: "100%",
+            textAlign: "center",
+          }}
+        >
+          <h1 style={{ fontSize: "2rem", marginBottom: 10 }}>
+            {product.Nombre}
+          </h1>
+
+          <p><strong>Talla:</strong> {product.Talla}</p>
+          <p><strong>SKU:</strong> {product.SKU}</p>
+          <p><strong>Precio:</strong> {product.Precio ?? "Sin precio"}</p>
+
+          <a
+            href="https://wa.link/cd114w"
+            target="_blank"
+            style={{
+              display: "inline-block",
+              background: "white",
+              color: "black",
+              padding: "12px 20px",
+              borderRadius: 8,
+              textDecoration: "none",
+              fontWeight: "bold",
+              marginTop: 20,
+            }}
+          >
+            Comprar
+          </a>
+        </div>
       </div>
 
       <Footer />
+
+      {/* =============================== */}
+      {/* FULLSCREEN CON SWIPE */}
+      {/* =============================== */}
+{fullscreen && (
+  <div
+    onClick={() => setFullscreen(false)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.95)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+      touchAction: "pan-y",
+    }}
+    onTouchStart={(e) => swipeStart(e.touches[0].clientX)}
+    onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
+    onTouchEnd={swipeEnd}
+    onMouseDown={(e) => swipeStart(e.clientX)}
+    onMouseMove={(e) => {
+      if (dragging.current) {
+        e.preventDefault();
+        swipeMove(e.clientX);
+      }
+    }}
+    onMouseUp={swipeEnd}
+    onMouseLeave={swipeEnd}
+  >
+    <img
+      src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(
+        gallery[selectedIndex]
+      )}`}
+      style={{
+        width: "90%",
+        maxWidth: "900px",
+        objectFit: "contain",
+        borderRadius: 12,
+      }}
+      draggable={false}
+    />
+  </div>
+)}
     </>
   );
 }
