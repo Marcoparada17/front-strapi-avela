@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { strapiFetch } from "@/lib/strapi";
+import Sugerencias from "../../components/Sugerencias";
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -13,52 +14,35 @@ export default function ProductPage() {
   const [product, setProduct] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [hover, setHover] = useState(false);
 
-  // swipe refs
   const startX = useRef<number | null>(null);
   const dragging = useRef(false);
 
-useEffect(() => {
-  async function load() {
-    try {
+  useEffect(() => {
+    async function load() {
       const json = await strapiFetch(
         `/traje-de-banos?filters[SKU][$eq]=${slug}&populate=Imagenes`
       );
 
-      console.log("STRAPI RAW →", JSON.stringify(json, null, 2));
-
       const item = json.data?.[0] || null;
       setProduct(item);
-    } catch (err) {
-      console.error("ERROR FETCHING:", err);
     }
-  }
 
-  load();
-}, [slug]);
+    load();
+  }, [slug]);
 
   if (!product)
     return <p style={{ color: "white", padding: 40 }}>Cargando…</p>;
 
   const gallery = product.Imagenes || [];
 
-  // =============================================
-  // SAFE GET IMAGE (FUNCIONA PARA TODAS LAS IMÁGENES)
-  // =============================================
   const getImage = (img: any) => {
-    const formats = img.formats || {};
-
-    return (
-      formats.medium?.url ||
-      formats.small?.url ||
-      formats.thumbnail?.url ||
-      img.url
-    );
+    const f = img.formats || {};
+    return f.medium?.url || f.small?.url || f.thumbnail?.url || img.url;
   };
 
-  // =============================================
-  // SWIPE HANDLERS (CARRUSEL + FULLSCREEN)
-  // =============================================
+  // Swipe
   const swipeStart = (clientX: number) => {
     dragging.current = true;
     startX.current = clientX;
@@ -84,11 +68,17 @@ useEffect(() => {
     startX.current = null;
   };
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 850;
+
+  // WhatsApp dinámico
+  const whatsappUrl = `https://wa.link/cd114w?text=${encodeURIComponent(
+    `Estoy interesada en el modelo: ${product.Nombre} – SKU: ${product.SKU}`
+  )}`;
+
   return (
     <>
       <Navbar />
 
-      {/* BACK BUTTON */}
       <div style={{ padding: "100px 20px 0 20px" }}>
         <button
           onClick={() => router.back()}
@@ -105,184 +95,205 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* MAIN WRAPPER */}
       <div
         style={{
-          padding: "0 40px 120px 40px",
+          padding: "0 20px 120px 20px",
           color: "white",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          gap: 40,
+          justifyContent: "center",
+          alignItems: isMobile ? "center" : "flex-start",
+          maxWidth: 1300,
+          margin: "0 auto",
         }}
       >
-        {/* =============================== */}
-        {/* CARRUSEL CON SWIPE */}
-        {/* =============================== */}
-       <div
-  style={{
-    width: "100%",
-    maxWidth: 420,
-    overflow: "hidden",
-    borderRadius: 12,
-    marginBottom: 20,
-    touchAction: "pan-y",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      transform: `translateX(-${selectedIndex * 100}%)`,
-      transition: "transform .25s ease",
-    }}
-    onTouchStart={(e) => swipeStart(e.touches[0].clientX)}
-    onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
-    onTouchEnd={swipeEnd}
-    onMouseDown={(e) => swipeStart(e.clientX)}
-    onMouseMove={(e) => {
-      if (dragging.current) {
-        e.preventDefault();
-        swipeMove(e.clientX);
-      }
-    }}
-    onMouseUp={swipeEnd}
-    onMouseLeave={swipeEnd}
-  >
-    {gallery.map((img: any, i: number) => (
-      <div
-        key={i}
-        style={{
-          flex: "0 0 100%",   // 🔥 CADA SLIDE OCUPA SU ANCHO EXACTO
-        }}
-      >
-        <img
-          onClick={() => setFullscreen(true)}
-          src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
-          style={{
-            width: "100%",
-            height: 420,
-            objectFit: "cover",
-            userSelect: "none",
-            cursor: "pointer",
-          }}
-          draggable={false}
-        />
-      </div>
-    ))}
-  </div>
-</div>
+        {/* ===================================== */}
+        {/* LEFT SIDE - IMAGES */}
+        {/* ===================================== */}
+        <div style={{ display: "flex", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
+          
+          {/* Miniaturas desktop */}
+          {!isMobile && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {gallery.map((img: any, i: number) => (
+                <img
+                  key={i}
+                  src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 8,
+                    objectFit: "cover",
+                    cursor: "pointer",
+                    border: selectedIndex === i ? "2px solid white" : "2px solid transparent",
+                  }}
+                  onClick={() => setSelectedIndex(i)}
+                />
+              ))}
+            </div>
+          )}
 
-        {/* =============================== */}
-        {/* MINIATURAS */}
-        {/* =============================== */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginBottom: 30,
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          {gallery.map((img: any, i: number) => (
-            <img
-              key={i}
-              src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
-              onClick={() => setSelectedIndex(i)}
+          {/* Main image swiper */}
+          <div style={{ width: isMobile ? "100%" : 450, borderRadius: 12, overflow: "hidden" }}>
+            <div
               style={{
-                width: 60,
-                height: 60,
-                borderRadius: 8,
-                objectFit: "cover",
-                cursor: "pointer",
-                border:
-                  selectedIndex === i
-                    ? "2px solid #32cd32"
-                    : "2px solid transparent",
+                display: "flex",
+                width: "100%",
+                transform: `translateX(-${selectedIndex * 100}%)`,
+                transition: "transform .25s ease",
               }}
-            />
-          ))}
+              onTouchStart={(e) => swipeStart(e.touches[0].clientX)}
+              onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
+              onTouchEnd={swipeEnd}
+              onMouseDown={(e) => swipeStart(e.clientX)}
+              onMouseMove={(e) => { if (dragging.current) swipeMove(e.clientX); }}
+              onMouseUp={swipeEnd}
+              onMouseLeave={swipeEnd}
+            >
+              {gallery.map((img: any, i: number) => (
+                <div key={i} style={{ flex: "0 0 100%" }}>
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+                    onClick={() => setFullscreen(true)}
+                    style={{
+                      width: "100%",
+                      height: isMobile ? 380 : 450,
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Miniaturas mobile debajo */}
+          {isMobile && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                justifyContent: "center",
+                marginTop: 15,
+                flexWrap: "wrap",
+              }}
+            >
+              {gallery.map((img: any, i: number) => (
+                <img
+                  key={i}
+                  src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                    border: selectedIndex === i ? "2px solid white" : "2px solid transparent",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setSelectedIndex(i)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* PRODUCT INFO */}
-        <div
-          style={{
-            maxWidth: 500,
-            width: "100%",
-            textAlign: "center",
-          }}
-        >
-          <h1 style={{ fontSize: "2rem", marginBottom: 10 }}>
-            {product.Nombre}
-          </h1>
+        {/* ===================================== */}
+        {/* RIGHT SIDE - INFO */}
+        {/* ===================================== */}
+        <div style={{ maxWidth: 500, width: "100%" }}>
+          
+          {isMobile && (
+            <p style={{ fontSize: "1.8rem", fontWeight: "bold", marginBottom: 10 }}>
+              ${product.Precio}
+            </p>
+          )}
+
+          {/* Promo */}
+          <div
+            style={{
+              width: "90%",
+              padding: "14px 18px",
+              background: "white",
+              borderRadius: 0,
+              marginBottom: 20,
+              color: "black",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <img src="/promo-code.svg" width={26} style={{filter: "invert(1)"}}/>
+            Llévate 2 modelos por <strong>$20</strong>
+          </div>
+
+          <h1 style={{ fontSize: "2rem" }}>{product.Nombre}</h1>
 
           <p><strong>Talla:</strong> {product.Talla}</p>
           <p><strong>SKU:</strong> {product.SKU}</p>
-          <p><strong>Precio:</strong> {product.Precio ?? "Sin precio"}</p>
 
+          {!isMobile && (
+            <p style={{ fontSize: "1.7rem", fontWeight: "bold", margin: "20px 0" }}>
+              ${product.Precio}
+            </p>
+          )}
+
+          {/* Buy button */}
           <a
-            href="https://wa.link/cd114w"
+            href={whatsappUrl}
             target="_blank"
             style={{
               display: "inline-block",
-              background: "white",
-              color: "black",
-              padding: "12px 20px",
+              background: hover ? "black" : "white",
+              color: hover ? "white" : "black",
+              padding: "14px 24px",
               borderRadius: 8,
               textDecoration: "none",
               fontWeight: "bold",
-              marginTop: 20,
+              marginTop: 25,
+              transition: "all .25s ease",
             }}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
           >
             Comprar
           </a>
         </div>
       </div>
 
+      {/* Sugerencias */}
+      <div style={{ padding: "0 20px 60px 20px" }}>
+        <Sugerencias />
+      </div>
+
       <Footer />
 
-      {/* =============================== */}
-      {/* FULLSCREEN CON SWIPE */}
-      {/* =============================== */}
-{fullscreen && (
-  <div
-    onClick={() => setFullscreen(false)}
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.95)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 9999,
-      touchAction: "pan-y",
-    }}
-    onTouchStart={(e) => swipeStart(e.touches[0].clientX)}
-    onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
-    onTouchEnd={swipeEnd}
-    onMouseDown={(e) => swipeStart(e.clientX)}
-    onMouseMove={(e) => {
-      if (dragging.current) {
-        e.preventDefault();
-        swipeMove(e.clientX);
-      }
-    }}
-    onMouseUp={swipeEnd}
-    onMouseLeave={swipeEnd}
-  >
-    <img
-      src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(
-        gallery[selectedIndex]
-      )}`}
-      style={{
-        width: "90%",
-        maxWidth: "900px",
-        objectFit: "contain",
-        borderRadius: 12,
-      }}
-      draggable={false}
-    />
-  </div>
-)}
+      {/* Fullscreen */}
+      {fullscreen && (
+        <div
+          onClick={() => setFullscreen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.95)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+          }}
+        >
+          <img
+            src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(
+              gallery[selectedIndex]
+            )}`}
+            style={{
+              width: "90%",
+              maxWidth: 900,
+              objectFit: "contain",
+              borderRadius: 12,
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -5,7 +5,8 @@ import React, { useState, useEffect } from "react";
 export default function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const [open, setOpen] = useState(false);
-
+  const base_url = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 850);
     check();
@@ -33,20 +34,36 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* LOGO */}
+        {/* LOGO (CLICKABLE) */}
         <div style={center}>
-          <img
-            src="/artboard1.svg"
-            alt="Avela Store"
-            style={{ height: 140, maxWidth: 140 }}
-          />
+          <a href="/" style={{ display: "flex", alignItems: "center" }}>
+            <img
+              src="/artboard1.svg"
+              alt="Avela Store"
+              style={{ height: 140, maxWidth: 140, cursor: "pointer" }}
+            />
+          </a>
         </div>
 
         {/* RIGHT (desktop) */}
         {!isMobile && (
           <div style={right}>
-            <a style={link} href="https://www.tiktok.com/@avelastore.ve?_r=1&_t=ZM-91gJM3Qyrr2">TIK TOK</a>
-            <a style={link} href="https://www.instagram.com/avelastore.ve?igsh=ZWFjZmFyaTIybTlk" target="_blank">Instagram</a>
+            <a
+              href="https://www.tiktok.com/@avelastore.ve?_r=1&_t=ZM-91gJM3Qyrr2"
+              target="_blank"
+              style={iconLink}
+            >
+              <img src="/tiktok.svg" alt="TikTok" style={icon} />
+            </a>
+
+            <a
+              href="https://www.instagram.com/avelastore.ve?igsh=ZWFjZmFyaTIybTlk"
+              target="_blank"
+              style={iconLink}
+            >
+              <img src="/instagram.svg" alt="Instagram" style={icon} />
+            </a>
+
             <a href="https://wa.link/cd114w" target="_blank" style={whatsapp}>
               Comprar
             </a>
@@ -59,22 +76,28 @@ export default function Navbar() {
         <div style={mobileMenu}>
           <a style={mobileLink} href="/" onClick={() => setOpen(false)}>Inicio</a>
           <a style={mobileLink} href="/catalogo" onClick={() => setOpen(false)}>Catálogo</a>
-          <a style={mobileLink} href="https://www.tiktok.com/@avelastore.ve?_r=1&_t=ZM-91gJM3Qyrr2" onClick={() => setOpen(false)}>TIK TOK</a>
+
           <a
-            style={mobileLink}
-            href="https://www.instagram.com/avelastore.ve?igsh=ZWFjZmFyaTIybTlk"
+            style={mobileSocialLink}
+            href="https://www.tiktok.com/@avelastore.ve?_r=1&_t=ZM-91lVrLd2Etk"
             target="_blank"
             onClick={() => setOpen(false)}
           >
+            <img src="/tiktok.svg" alt="TikTok" style={mobileIcon} />
+            TikTok
+          </a>
+
+          <a
+            style={mobileSocialLink}
+            href="https://www.instagram.com/avelastore.ve?igsh=ejM5eGxjeTNtNnR5"
+            target="_blank"
+            onClick={() => setOpen(false)}
+          >
+            <img src="/instagram.svg" alt="Instagram" style={mobileIcon} />
             Instagram
           </a>
 
-          {/* WHATSAPP MOBILE BUTTON (FIX) */}
-          <a
-            href="https://wa.link/cd114w"
-            target="_blank"
-            style={whatsappMobile}
-          >
+          <a href="https://wa.link/cd114w" target="_blank" style={whatsappMobile}>
             Comprar
           </a>
         </div>
@@ -96,7 +119,7 @@ const header: React.CSSProperties = {
   top: 0,
   left: 0,
   zIndex: 999,
-  background: "rgba(0,0,0,0.6)",
+  background: "rgba(0, 0, 0, 0.8)",
   backdropFilter: "blur(6px)",
   boxSizing: "border-box",
 };
@@ -130,7 +153,34 @@ const center: React.CSSProperties = {
 const right: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 18,
+  gap: 22,
+};
+
+const iconLink: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+};
+
+const icon: React.CSSProperties = {
+  width: 26,
+  height: 26,
+  filter: "invert(0)",
+  cursor: "pointer",
+};
+
+const mobileIcon: React.CSSProperties = {
+  width: 22,
+  height: 22,
+  filter: "invert(0)",
+};
+
+const mobileSocialLink: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  color: "white",
+  textDecoration: "none",
+  fontSize: "1.1rem",
 };
 
 const whatsapp: React.CSSProperties = {
@@ -143,7 +193,6 @@ const whatsapp: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-/* 🔥 WHATSAPP MOBILE — botón más pequeño */
 const whatsappMobile: React.CSSProperties = {
   background: "#25D366",
   padding: "8px 0",
@@ -171,7 +220,7 @@ const mobileMenu: React.CSSProperties = {
   top: 70,
   left: 0,
   width: "100%",
-  background: "rgba(0,0,0,0.95)",
+  background: "rgba(0, 0, 0, 0.8)",
   padding: "20px",
   display: "flex",
   flexDirection: "column",
