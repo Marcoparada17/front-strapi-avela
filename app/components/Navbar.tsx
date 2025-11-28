@@ -36,7 +36,7 @@ export default function Navbar() {
         {/* LOGO */}
         <div style={center}>
           <img
-            src="/artboard_1.png"
+            src="/artboard1.svg"
             alt="Avela Store"
             style={{ height: 140, maxWidth: 140 }}
           />
