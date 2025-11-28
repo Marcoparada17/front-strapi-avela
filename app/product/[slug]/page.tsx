@@ -71,9 +71,9 @@ export default function ProductPage() {
   const isMobile = typeof window !== "undefined" && window.innerWidth < 850;
 
   // WhatsApp dinámico
-  const whatsappUrl = `https://wa.link/cd114w?text=${encodeURIComponent(
-    `Estoy interesada en el modelo: ${product.Nombre} – SKU: ${product.SKU}`
-  )}`;
+ const whatsappUrl = `https://api.whatsapp.com/send?phone=584245304372&text=${encodeURIComponent(
+  `Estoy interesada en el modelo: ${product.Nombre} – SKU: ${product.SKU}`
+)}`;
 
   return (
     <>

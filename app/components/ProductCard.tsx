@@ -45,7 +45,7 @@ export default function ProductCard({ title, price, image, slug }: ProductCardPr
             {title}
           </h3>
 
-          <p style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#32cd32" }}>
+          <p style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#ffffffff" }}>
             {price ? `$${price}` : "Sin precio"}
           </p>
         </div>

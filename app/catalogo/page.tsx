@@ -113,7 +113,7 @@ export default function Catalogo() {
               style={{
                 padding: "8px 16px",
                 background:
-                  tallaSeleccionada === talla ? "#32cd32" : "#222",
+                  tallaSeleccionada === talla ? "#ffffffff" : "#222",
                 color: "white",
                 border: "1px solid #444",
                 borderRadius: 8,
