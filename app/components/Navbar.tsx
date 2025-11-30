@@ -8,10 +8,51 @@ export default function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // lo dejamos por si lo usas en otra cosa, pero el número lo sacamos de localStorage
   const { cart } = useCart();
-  const count = cart.length;
 
+  const [count, setCount] = useState(0);
+
+  // ✅ Sincroniza el contador con localStorage y evento "cartUpdated"
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncCount = () => {
+      try {
+        const raw = localStorage.getItem("avela_cart");
+        if (!raw) {
+          setCount(0);
+          return;
+        }
+        const arr = JSON.parse(raw);
+        setCount(Array.isArray(arr) ? arr.length : 0);
+      } catch {
+        setCount(0);
+      }
+    };
+
+    syncCount();
+
+    window.addEventListener("cartUpdated", syncCount);
+    window.addEventListener("storage", syncCount);
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncCount);
+      window.removeEventListener("storage", syncCount);
+    };
+  }, []);
+
+  // por si el hook de contexto sí cambia, lo usamos también
+  useEffect(() => {
+    if (Array.isArray(cart)) {
+      setCount(cart.length);
+    }
+  }, [cart]);
+
+  // detectar mobile
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const checkMobile = () => setIsMobile(window.innerWidth < 850);
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -55,7 +96,7 @@ export default function Navbar() {
         {/* RIGHT DESKTOP */}
         {!isMobile && (
           <div style={right}>
-            <a href="/cart" style={{ position: "relative" as const }}>
+            <a href="/cart" style={cartLink}>
               <img src="/cart.svg" style={icon} />
               {count > 0 && <span style={badge}>{count}</span>}
             </a>
@@ -76,7 +117,7 @@ export default function Navbar() {
 
         {/* RIGHT MOBILE */}
         {isMobile && (
-          <a href="/cart" style={{ position: "relative" as const }}>
+          <a href="/cart" style={cartLink}>
             <img src="/cart.svg" style={icon} />
             {count > 0 && <span style={badgeMobile}>{count}</span>}
           </a>
@@ -156,6 +197,12 @@ const right: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 18,
+};
+
+const cartLink: CSSProperties = {
+  position: "relative",
+  display: "inline-flex",
+  alignItems: "center",
 };
 
 const link: CSSProperties = {

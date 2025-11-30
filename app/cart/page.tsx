@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { getCart, removeItemByIndex, clearCart, CartItem } from "@/lib/cart";
+import { getCart, removeItemByIndex, clearCart } from "@/lib/cart";
 
 export default function CartPage() {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<any[]>([]);
 
   const syncCart = () => {
     const cart = getCart();
@@ -14,7 +14,6 @@ export default function CartPage() {
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     syncCart();
 
     const handler = () => syncCart();
@@ -27,52 +26,37 @@ export default function CartPage() {
     };
   }, []);
 
-  const handleRemove = (index: number) => {
-    removeItemByIndex(index);
-  };
-
+  const handleRemove = (index: number) => removeItemByIndex(index);
   const handleClear = () => {
-    if (confirm("¿Vaciar carrito?")) {
-      clearCart();
-    }
+    if (confirm("¿Vaciar carrito?")) clearCart();
   };
 
-  const handlePay = () => {
-    if (items.length === 0) return;
-
-    const list = items
-      .map(
-        (it, idx) =>
-          `${idx + 1}. SKU: ${it.sku} — Modelo: ${it.nombre}${
-            it.talla ? ` — Talla: ${it.talla}` : ""
-          }`
-      )
-      .join("\n");
-
-    const qty = items.length;
-    const baseTotal = qty * 15;
-    const hasPromo = qty >= 2;
-    const promoTotal = hasPromo ? qty * 10 : baseTotal;
-
-    let msg = `Hola, estoy interesada en los siguientes modelos:\n\n${list}\n\n`;
-
-    if (hasPromo) {
-      msg += `${qty} piezas — total ${baseTotal}$ con la promo ${promoTotal}$`;
-    } else {
-      msg += `${qty} pieza — total ${baseTotal}$`;
-    }
-
-    const url = `https://api.whatsapp.com/send?phone=584245304372&text=${encodeURIComponent(
-      msg
-    )}`;
-    window.open(url, "_blank");
-  };
-
-  // ==== CÁLCULO FACTURA ====
   const qty = items.length;
   const baseTotal = qty * 15;
   const hasPromo = qty >= 2;
   const promoTotal = hasPromo ? qty * 10 : baseTotal;
+
+  const handlePay = () => {
+    if (qty === 0) return;
+
+    const list = items
+      .map(
+        (it, idx) =>
+          `${idx + 1}. SKU: ${it.slug} — Modelo: ${it.title}`
+      )
+      .join("\n");
+
+    let msg = `Hola, estoy interesada en los siguientes modelos:\n\n${list}\n\n`;
+
+    if (hasPromo) {
+      msg += `${qty} piezas — Total ${baseTotal}$ con la promo ${promoTotal}$`;
+    } else {
+      msg += `${qty} pieza — total ${baseTotal}$`;
+    }
+
+    const url = `https://api.whatsapp.com/send?phone=584245304372&text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
 
   return (
     <>
@@ -92,7 +76,7 @@ export default function CartPage() {
           <p style={{ opacity: 0.8 }}>No tienes productos en el carrito.</p>
         ) : (
           <>
-            {/* LISTA DE ITEMS */}
+            {/* LISTA */}
             <div
               style={{
                 display: "flex",
@@ -114,10 +98,10 @@ export default function CartPage() {
                     border: "1px solid #222",
                   }}
                 >
-                  {item.imagenUrl && (
+                  {item.image && (
                     <img
-                      src={item.imagenUrl}
-                      alt={item.nombre}
+                      src={item.image}
+                      alt={item.title}
                       style={{
                         width: 80,
                         height: 80,
@@ -129,42 +113,48 @@ export default function CartPage() {
 
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: "bold", marginBottom: 4 }}>
-                      {item.nombre}
+                      {item.title}
                     </p>
                     <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                      SKU: {item.sku}
+                      SKU: {item.slug}
                     </p>
-                    {item.talla && (
-                      <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                        Talla: {item.talla}
-                      </p>
-                    )}
                   </div>
 
-                  <button
-                    onClick={() => handleRemove(index)}
-                    style={{
-                      background: "transparent",
-                      color: "#ff6666",
-                      border: "1px solid #ff6666",
-                      borderRadius: 6,
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: "0.8rem",
-                    }}
-                  >
-                    Eliminar
-                  </button>
+<button
+  onClick={() => handleRemove(index)}
+  style={{
+    background: "transparent",
+    color: "#ff6666",
+    border: "1px solid #ff6666",
+    borderRadius: 8,
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontSize: "0.9rem",
+    minWidth: 110,
+    textAlign: "center",
+    transition: "0.25s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = "#ff6666";
+    e.currentTarget.style.color = "#000";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = "#ff6666";
+  }}
+>
+  Eliminar
+</button>
                 </div>
               ))}
             </div>
 
-            {/* FACTURA — TOTAL */}
+            {/* FACTURA */}
             <div
               style={{
                 background: "#111",
                 borderRadius: 10,
-                padding: "20px",
+                padding: 20,
                 border: "1px solid #222",
                 marginBottom: 40,
               }}
@@ -173,16 +163,13 @@ export default function CartPage() {
                 <strong>{qty} pieza{qty !== 1 ? "s" : ""}</strong>
               </p>
 
-              {/* Total base */}
               <p style={{ opacity: 0.85, marginBottom: 8 }}>
                 Total: <strong>{baseTotal}$</strong>
               </p>
 
               {hasPromo && (
                 <>
-                  <p style={{ color: "#32cd32", marginBottom: 8 }}>
-                    Promoción aplicada
-                  </p>
+                  <p style={{ color: "#32cd32" }}>Promoción aplicada</p>
 
                   <div
                     style={{
@@ -206,43 +193,62 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* BOTONES AL FINAL */}
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                onClick={handlePay}
-                style={{
-                  background: "#fff",
-                  color: "#000",
-                  padding: "12px 20px",
-                  borderRadius: 8,
-                  border: "none",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
-              >
-                Comprar
-              </button>
-
-              <button
-                onClick={handleClear}
-                style={{
-                  background: "transparent",
-                  color: "#fff",
-                  padding: "12px 20px",
-                  borderRadius: 8,
-                  border: "1px solid #555",
-                  cursor: "pointer",
-                  fontSize: "0.9rem",
-                }}
-              >
-                Vaciar carrito
-              </button>
+            {/* BOTONES */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+<button
+  onClick={handlePay}
+  style={{
+    background: "#fff",
+    color: "#000",
+    padding: "12px 20px",
+    borderRadius: 8,
+    border: "1px solid #aaa",
+    fontWeight: "bold",
+    cursor: "pointer",
+    minWidth: 130,
+    textAlign: "center",
+    transition: "0.25s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = "#000";
+    e.currentTarget.style.color = "#fff";
+    e.currentTarget.style.border = "1px solid #fff";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = "#fff";
+    e.currentTarget.style.color = "#000";
+    e.currentTarget.style.border = "1px solid #aaa";
+  }}
+>
+  Comprar
+</button>
+<button
+  onClick={handleClear}
+  style={{
+    background: "transparent",
+    color: "#fff",
+    padding: "12px 20px",
+    borderRadius: 8,
+    border: "1px solid #555",
+    cursor: "pointer",
+    fontSize: "0.9rem",
+    minWidth: 130,
+    textAlign: "center",
+    transition: "0.25s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = "#fff";
+    e.currentTarget.style.color = "#000";
+    e.currentTarget.style.border = "1px solid #fff";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = "#fff";
+    e.currentTarget.style.border = "1px solid #555";
+  }}
+>
+  Vaciar carrito
+</button>
             </div>
           </>
         )}

@@ -29,51 +29,81 @@ interface Producto {
 }
 
 export default function Catalogo() {
-  // ===== Hooks SIEMPRE en el tope =====
   const [productos, setProductos] = useState<Producto[]>([]);
   const [tallas, setTallas] = useState<string[]>([]);
   const [tallaSeleccionada, setTallaSeleccionada] = useState("Todas");
   const [loading, setLoading] = useState(true);
 
-  // 🔥 PAGINACIÓN
+  // 🔥 PAGINACIÓN REAL EN STRAPI
   const [page, setPage] = useState(1);
-  const itemsPerPage = 12;
+  const pageSize = 12;
+  const [pageCount, setPageCount] = useState(1);
 
+  // 1) Cargar tallas una sola vez
   useEffect(() => {
-    async function load() {
-      const res = await strapiFetch("/traje-de-banos?populate=Imagenes");
-      const data: Producto[] = res?.data || [];
+    async function loadTallas() {
+      try {
+        // puedes subir pageSize si algún día tienes más productos
+        const res = await strapiFetch(
+          "/traje-de-banos?pagination[page]=1&pagination[pageSize]=200&fields[0]=Talla"
+        );
 
-      setProductos(data);
+        const data: Producto[] = res?.data || [];
 
-      const unique = Array.from(new Set(data.map((p) => String(p.Talla))));
-      setTallas(unique);
+        const unique = Array.from(
+          new Set(
+            data
+              .map((p) => (p.Talla ? String(p.Talla) : ""))
+              .filter((t) => t !== "")
+          )
+        );
 
-      setLoading(false);
+        setTallas(unique);
+      } catch (err) {
+        console.error("Error cargando tallas", err);
+      }
     }
 
-    load();
+    loadTallas();
   }, []);
 
-  // 🔥 Filtrado (no genera hooks)
-  const productosFiltrados =
-    tallaSeleccionada === "Todas"
-      ? productos
-      : productos.filter((p) => p.Talla === tallaSeleccionada);
+  // 2) Cargar productos según página + tallaSeleccionada (paginación Strapi)
+  useEffect(() => {
+    async function loadProductos() {
+      try {
+        setLoading(true);
 
-  const totalPages = Math.ceil(productosFiltrados.length / itemsPerPage);
+        let url = `/traje-de-banos?populate=Imagenes&pagination[page]=${page}&pagination[pageSize]=${pageSize}`;
 
-  const productosEnPagina = productosFiltrados.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
-  );
+        if (tallaSeleccionada !== "Todas") {
+          url += `&filters[Talla][$eq]=${encodeURIComponent(
+            tallaSeleccionada
+          )}`;
+        }
 
-  // Reset de página al cambiar talla
-  useEffect(() => setPage(1), [tallaSeleccionada]);
+        const res = await strapiFetch(url);
 
-  // ================================
-  //  RETORNO NORMAL (loading dentro)
-  // ================================
+        const data: Producto[] = res?.data || [];
+        const metaPagination = res?.meta?.pagination;
+
+        setProductos(data);
+        setPageCount(metaPagination?.pageCount || 1);
+      } catch (err) {
+        console.error("Error cargando productos", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProductos();
+  }, [page, tallaSeleccionada]);
+
+  // cuando cambias de talla, siempre volvemos a página 1
+  const handleChangeTalla = (talla: string) => {
+    setTallaSeleccionada(talla);
+    setPage(1);
+  };
+
   return (
     <>
       <Navbar />
@@ -81,14 +111,15 @@ export default function Catalogo() {
       <div style={{ padding: "120px 40px", color: "white" }}>
         <h1 style={{ fontSize: "2rem", marginBottom: 20 }}>Catálogo Completo</h1>
 
-        {/* LOADER DENTRO DEL JSX → fijo el problema */}
+        {/* LOADER */}
         {loading && (
-          <p style={{ color: "white", padding: 40 }}>Cargando catálogo…</p>
+          <p style={{ color: "white", padding: 20 }}>Cargando catálogo…</p>
         )}
 
+        {/* CONTENIDO SOLO CUANDO NO ESTÁ CARGANDO */}
         {!loading && (
           <>
-            {/* FILTROS DE TALLA */}
+            {/* FILTRO POR TALLA */}
             <div
               style={{
                 marginBottom: 20,
@@ -98,7 +129,7 @@ export default function Catalogo() {
               }}
             >
               <button
-                onClick={() => setTallaSeleccionada("Todas")}
+                onClick={() => handleChangeTalla("Todas")}
                 style={{
                   padding: "8px 16px",
                   background:
@@ -115,7 +146,7 @@ export default function Catalogo() {
               {tallas.map((talla) => (
                 <button
                   key={talla}
-                  onClick={() => setTallaSeleccionada(talla)}
+                  onClick={() => handleChangeTalla(talla)}
                   style={{
                     padding: "8px 16px",
                     background:
@@ -131,7 +162,7 @@ export default function Catalogo() {
               ))}
             </div>
 
-            {/* GRID */}
+            {/* GRID DE PRODUCTOS (YA VIENEN PAGINADOS) */}
             <div
               style={{
                 display: "grid",
@@ -140,7 +171,7 @@ export default function Catalogo() {
                 gap: 25,
               }}
             >
-              {productosEnPagina.map((p) => {
+              {productos.map((p) => {
                 const img =
                   p.Imagenes?.[0]?.formats?.medium?.url ||
                   p.Imagenes?.[0]?.url ||
@@ -156,10 +187,16 @@ export default function Catalogo() {
                   />
                 );
               })}
+
+              {productos.length === 0 && (
+                <p style={{ gridColumn: "1 / -1", opacity: 0.8 }}>
+                  No hay productos para esta talla.
+                </p>
+              )}
             </div>
 
             {/* PAGINACIÓN */}
-            {totalPages > 1 && (
+            {pageCount > 1 && (
               <div
                 style={{
                   marginTop: 35,
@@ -178,36 +215,29 @@ export default function Catalogo() {
                     background: page === 1 ? "#444" : "white",
                     color: page === 1 ? "#888" : "black",
                     border: "none",
-                    cursor:
-                      page === 1 ? "not-allowed" : "pointer",
+                    cursor: page === 1 ? "not-allowed" : "pointer",
                   }}
                 >
                   ← Anterior
                 </button>
 
                 <span style={{ fontSize: 18 }}>
-                  Página {page} / {totalPages}
+                  Página {page} / {pageCount}
                 </span>
 
                 <button
                   onClick={() =>
-                    setPage((prev) =>
-                      Math.min(prev + 1, totalPages)
-                    )
+                    setPage((prev) => Math.min(prev + 1, pageCount))
                   }
-                  disabled={page === totalPages}
+                  disabled={page === pageCount}
                   style={{
                     padding: "8px 14px",
                     borderRadius: 6,
-                    background:
-                      page === totalPages ? "#444" : "white",
-                    color:
-                      page === totalPages ? "#888" : "black",
+                    background: page === pageCount ? "#444" : "white",
+                    color: page === pageCount ? "#888" : "black",
                     border: "none",
                     cursor:
-                      page === totalPages
-                        ? "not-allowed"
-                        : "pointer",
+                      page === pageCount ? "not-allowed" : "pointer",
                   }}
                 >
                   Siguiente →
