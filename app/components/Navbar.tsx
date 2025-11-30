@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useCart } from "@/hooks/useCart";
 
 export default function Navbar() {
@@ -10,7 +11,6 @@ export default function Navbar() {
   const { cart } = useCart();
   const count = cart.length;
 
-  /* CHECK MOBILE */
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 850);
     checkMobile();
@@ -22,7 +22,6 @@ export default function Navbar() {
     <>
       {/* NAVBAR */}
       <div style={navbar}>
-        
         {/* LEFT */}
         <div style={leftWrapper}>
           {isMobile ? (
@@ -44,10 +43,10 @@ export default function Navbar() {
               src="/artboard1.svg"
               alt="Avela"
               style={{
-                height: isMobile ? 70 : 110,     // ← Logo más grande
+                height: isMobile ? 70 : 110,
                 width: "auto",
                 objectFit: "contain",
-                display: "block"
+                display: "block",
               }}
             />
           </a>
@@ -56,9 +55,8 @@ export default function Navbar() {
         {/* RIGHT DESKTOP */}
         {!isMobile && (
           <div style={right}>
-            <a href="/cart" style={{ position: "relative" }}>
-              <img src="/cart.svg" style={{ width: 28 }} />
-
+            <a href="/cart" style={{ position: "relative" as const }}>
+              <img src="/cart.svg" style={icon} />
               {count > 0 && <span style={badge}>{count}</span>}
             </a>
 
@@ -76,28 +74,41 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* RIGHT MOBILE (ONLY CART) */}
+        {/* RIGHT MOBILE */}
         {isMobile && (
-          <a href="/cart" style={{ position: "relative" }}>
-            <img src="/cart.svg" style={{ width: 28 }} />
+          <a href="/cart" style={{ position: "relative" as const }}>
+            <img src="/cart.svg" style={icon} />
             {count > 0 && <span style={badgeMobile}>{count}</span>}
           </a>
         )}
-
       </div>
 
       {/* MOBILE MENU */}
       {isMobile && open && (
         <div style={mobileMenu}>
-          <a style={mobileLink} href="/" onClick={() => setOpen(false)}>Inicio</a>
-          <a style={mobileLink} href="/catalogo" onClick={() => setOpen(false)}>Catálogo</a>
-          <a style={mobileLink} href="/cart" onClick={() => setOpen(false)}>Carrito ({count})</a>
+          <a style={mobileLink} href="/" onClick={() => setOpen(false)}>
+            Inicio
+          </a>
+          <a style={mobileLink} href="/catalogo" onClick={() => setOpen(false)}>
+            Catálogo
+          </a>
+          <a style={mobileLink} href="/cart" onClick={() => setOpen(false)}>
+            Carrito ({count})
+          </a>
 
-          <a style={mobileSocialLink} href="https://www.tiktok.com/@avelastore.ve" target="_blank">
+          <a
+            style={mobileSocialLink}
+            href="https://www.tiktok.com/@avelastore.ve"
+            target="_blank"
+          >
             <img src="/tiktok.svg" style={mobileIcon} /> TikTok
           </a>
 
-          <a style={mobileSocialLink} href="https://www.instagram.com/avelastore.ve" target="_blank">
+          <a
+            style={mobileSocialLink}
+            href="https://www.instagram.com/avelastore.ve"
+            target="_blank"
+          >
             <img src="/instagram.svg" style={mobileIcon} /> Instagram
           </a>
 
@@ -110,9 +121,9 @@ export default function Navbar() {
   );
 }
 
-/* ============ ESTILOS ============ */
+/* ================= ESTILOS ================= */
 
-const navbar = {
+const navbar: CSSProperties = {
   width: "100%",
   height: 85,
   padding: "0 20px",
@@ -129,14 +140,36 @@ const navbar = {
   boxSizing: "border-box",
 };
 
-const leftWrapper = { display: "flex", alignItems: "center", gap: 18 };
-const center = { flex: 1, display: "flex", justifyContent: "center" };
-const right = { display: "flex", alignItems: "center", gap: 18 };
+const leftWrapper: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 18,
+};
 
-const link = { color: "white", textDecoration: "none", fontSize: "1rem" };
-const icon = { width: 26, height: 26 };
+const center: CSSProperties = {
+  flex: 1,
+  display: "flex",
+  justifyContent: "center",
+};
 
-const badge = {
+const right: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 18,
+};
+
+const link: CSSProperties = {
+  color: "white",
+  textDecoration: "none",
+  fontSize: "1rem",
+};
+
+const icon: CSSProperties = {
+  width: 26,
+  height: 26,
+};
+
+const badge: CSSProperties = {
   position: "absolute",
   top: -6,
   right: -10,
@@ -152,9 +185,13 @@ const badge = {
   fontWeight: "bold",
 };
 
-const badgeMobile = { ...badge, top: -5, right: -7 };
+const badgeMobile: CSSProperties = {
+  ...badge,
+  top: -5,
+  right: -7,
+};
 
-const whatsapp = {
+const whatsapp: CSSProperties = {
   background: "#25D366",
   color: "white",
   padding: "8px 14px",
@@ -163,14 +200,15 @@ const whatsapp = {
   fontWeight: "bold",
 };
 
-const hamburgerBtn = {
+const hamburgerBtn: CSSProperties = {
   fontSize: 28,
   background: "none",
   border: "none",
   color: "white",
+  cursor: "pointer",
 };
 
-const mobileMenu = {
+const mobileMenu: CSSProperties = {
   position: "fixed",
   top: 85,
   left: 0,
@@ -183,7 +221,28 @@ const mobileMenu = {
   zIndex: 999,
 };
 
-const mobileLink = { color: "white", fontSize: "1.1rem", textDecoration: "none" };
-const mobileIcon = { width: 22, height: 22 };
-const mobileSocialLink = { display: "flex", alignItems: "center", gap: 10, color: "white" };
-const whatsappMobile = { ...whatsapp, width: "50%", textAlign: "center", padding: "10px 0" };
+const mobileLink: CSSProperties = {
+  color: "white",
+  fontSize: "1.1rem",
+  textDecoration: "none",
+};
+
+const mobileIcon: CSSProperties = {
+  width: 22,
+  height: 22,
+};
+
+const mobileSocialLink: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  color: "white",
+  textDecoration: "none",
+};
+
+const whatsappMobile: CSSProperties = {
+  ...whatsapp,
+  width: "50%",
+  textAlign: "center",
+  padding: "10px 0",
+};
