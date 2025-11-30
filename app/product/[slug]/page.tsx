@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { strapiFetch } from "@/lib/strapi";
-import Sugerencias from "../../components/Sugerencias";
+import Sugerencias from "@/app/components/Sugerencias";
+import { addToCart, CartItem } from "@/lib/cart";
+import Toast from "@/app/components/Toast"; // <-- AGREGADO
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -14,19 +16,32 @@ export default function ProductPage() {
   const [product, setProduct] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
-  const [hover, setHover] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [toast, setToast] = useState(""); // <-- AGREGADO
 
+  // swipe refs
   const startX = useRef<number | null>(null);
   const dragging = useRef(false);
 
   useEffect(() => {
-    async function load() {
-      const json = await strapiFetch(
-        `/traje-de-banos?filters[SKU][$eq]=${slug}&populate=Imagenes`
-      );
+    const check = () => setIsMobile(window.innerWidth < 850);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
-      const item = json.data?.[0] || null;
-      setProduct(item);
+  useEffect(() => {
+    async function load() {
+      try {
+        const json = await strapiFetch(
+          `/traje-de-banos?filters[SKU][$eq]=${slug}&populate=Imagenes`
+        );
+
+        const item = json.data?.[0] || null;
+        setProduct(item);
+      } catch (err) {
+        console.error("ERROR FETCHING:", err);
+      }
     }
 
     load();
@@ -38,11 +53,17 @@ export default function ProductPage() {
   const gallery = product.Imagenes || [];
 
   const getImage = (img: any) => {
-    const f = img.formats || {};
-    return f.medium?.url || f.small?.url || f.thumbnail?.url || img.url;
+    if (!img) return null;
+    const formats = img.formats || {};
+    return (
+      formats.medium?.url ||
+      formats.small?.url ||
+      formats.thumbnail?.url ||
+      img.url
+    );
   };
 
-  // Swipe
+  // swipe handlers
   const swipeStart = (clientX: number) => {
     dragging.current = true;
     startX.current = clientX;
@@ -54,11 +75,11 @@ export default function ProductPage() {
     const delta = clientX - startX.current;
 
     if (delta > 80 && selectedIndex > 0) {
-      setSelectedIndex(selectedIndex - 1);
+      setSelectedIndex((prev) => prev - 1);
       dragging.current = false;
     }
     if (delta < -80 && selectedIndex < gallery.length - 1) {
-      setSelectedIndex(selectedIndex + 1);
+      setSelectedIndex((prev) => prev + 1);
       dragging.current = false;
     }
   };
@@ -68,17 +89,39 @@ export default function ProductPage() {
     startX.current = null;
   };
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 850;
+  const firstImg = gallery[0] ? getImage(gallery[0]) : null;
 
-  // WhatsApp dinámico
- const whatsappUrl = `https://api.whatsapp.com/send?phone=584245304372&text=${encodeURIComponent(
-  `Estoy interesada en el modelo: ${product.Nombre} – SKU: ${product.SKU}`
-)}`;
+  const handleAddToCart = () => {
+    const item: CartItem = {
+      sku: product.SKU,
+      nombre: product.Nombre,
+      talla: product.Talla,
+      imagenUrl: firstImg
+        ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${firstImg}`
+        : null,
+    };
+
+    addToCart(item);
+
+    // 🔥 TOAST EN VEZ DE ALERT
+    setToast("Agregado al carrito 🛒");
+  };
+
+  const handleWhatsAppBuy = () => {
+    const msg = `Hola, estoy interesada en el modelo ${product.Nombre}.\nSKU: ${product.SKU}\nTalla: ${product.Talla ?? "N/A"}`;
+    const url = `https://api.whatsapp.com/send?phone=584245304372&text=${encodeURIComponent(
+      msg
+    )}`;
+    window.open(url, "_blank");
+  };
 
   return (
     <>
+      {toast && <Toast message={toast} />} {/* <-- TOAST AQUÍ */}
+
       <Navbar />
 
+      {/* BACK BUTTON */}
       <div style={{ padding: "100px 20px 0 20px" }}>
         <button
           onClick={() => router.back()}
@@ -95,9 +138,10 @@ export default function ProductPage() {
         </button>
       </div>
 
+      {/* MAIN LAYOUT */}
       <div
         style={{
-          padding: "0 20px 120px 20px",
+          padding: "0 20px 60px 20px",
           color: "white",
           display: "flex",
           flexDirection: isMobile ? "column" : "row",
@@ -108,38 +152,50 @@ export default function ProductPage() {
           margin: "0 auto",
         }}
       >
-        {/* ===================================== */}
-        {/* LEFT SIDE - IMAGES */}
-        {/* ===================================== */}
-        <div style={{ display: "flex", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
-          
-          {/* Miniaturas desktop */}
+        {/* IZQUIERDA: galería */}
+        <div style={{ display: "flex", gap: 20 }}>
+          {/* MINIATURAS EN COLUMNA (SOLO DESKTOP) */}
           {!isMobile && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                height: "fit-content",
+              }}
+            >
               {gallery.map((img: any, i: number) => (
                 <img
                   key={i}
                   src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
+                  onClick={() => setSelectedIndex(i)}
                   style={{
                     width: 70,
                     height: 70,
                     borderRadius: 8,
                     objectFit: "cover",
                     cursor: "pointer",
-                    border: selectedIndex === i ? "2px solid white" : "2px solid transparent",
+                    border:
+                      selectedIndex === i
+                        ? "2px solid #32cd32"
+                        : "2px solid transparent",
                   }}
-                  onClick={() => setSelectedIndex(i)}
                 />
               ))}
             </div>
           )}
 
-          {/* Main image swiper */}
-          <div style={{ width: isMobile ? "100%" : 450, borderRadius: 12, overflow: "hidden" }}>
+          {/* IMAGEN PRINCIPAL */}
+          <div
+            style={{
+              width: isMobile ? "100%" : 450,
+              overflow: "hidden",
+              borderRadius: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
-                width: "100%",
                 transform: `translateX(-${selectedIndex * 100}%)`,
                 transition: "transform .25s ease",
               }}
@@ -147,7 +203,12 @@ export default function ProductPage() {
               onTouchMove={(e) => swipeMove(e.touches[0].clientX)}
               onTouchEnd={swipeEnd}
               onMouseDown={(e) => swipeStart(e.clientX)}
-              onMouseMove={(e) => { if (dragging.current) swipeMove(e.clientX); }}
+              onMouseMove={(e) => {
+                if (dragging.current) {
+                  e.preventDefault();
+                  swipeMove(e.clientX);
+                }
+              }}
               onMouseUp={swipeEnd}
               onMouseLeave={swipeEnd}
             >
@@ -158,116 +219,164 @@ export default function ProductPage() {
                     onClick={() => setFullscreen(true)}
                     style={{
                       width: "100%",
-                      height: isMobile ? 380 : 450,
+                      height: isMobile ? 360 : 450,
                       objectFit: "cover",
+                      borderRadius: 12,
+                      cursor: "pointer",
                     }}
                   />
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Miniaturas mobile debajo */}
+        {/* DERECHA */}
+        <div
+          style={{
+            maxWidth: 500,
+            width: "100%",
+          }}
+        >
+          {/* Precio (mobile arriba) */}
+          {isMobile && (
+            <p
+              style={{
+                fontSize: "1.8rem",
+                fontWeight: "bold",
+                marginBottom: 10,
+                marginTop: 20,
+              }}
+            >
+              ${product.Precio ?? "—"}
+            </p>
+          )}
+
+          {/* PROMO mobile */}
           {isMobile && (
             <div
               style={{
+                width: "90%",
+                padding: "12px 16px",
+                background: "#fff",
+                borderRadius: 8,
+                marginBottom: 20,
+                textAlign: "left",
+                color: "#000",
                 display: "flex",
+                alignItems: "center",
                 gap: 10,
-                justifyContent: "center",
-                marginTop: 15,
-                flexWrap: "wrap",
               }}
             >
-              {gallery.map((img: any, i: number) => (
-                <img
-                  key={i}
-                  src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${getImage(img)}`}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                    border: selectedIndex === i ? "2px solid white" : "2px solid transparent",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => setSelectedIndex(i)}
-                />
-              ))}
+              <img
+                src="/promo.svg"
+                alt="Promo"
+                style={{ width: 26, height: 26, filter: "invert(1)" }}
+              />
+              <div style={{ fontSize: "0.9rem" }}>
+                <strong>Llévate dos modelos</strong> que te gusten por solo{" "}
+                <strong>$20</strong>.
+              </div>
+            </div>
+          )}
+
+          {/* Título */}
+          <h1 style={{ fontSize: "2rem", marginBottom: 10 }}>
+            {product.Nombre}
+          </h1>
+
+          {/* SKU y talla */}
+          <p>
+            <strong>Talla:</strong> {product.Talla}
+          </p>
+          <p>
+            <strong>SKU:</strong> {product.SKU}
+          </p>
+
+          {/* Precio desktop */}
+          {!isMobile && (
+            <p
+              style={{
+                fontSize: "1.7rem",
+                margin: "20px 0",
+                fontWeight: "bold",
+              }}
+            >
+              ${product.Precio ?? "—"}
+            </p>
+          )}
+
+          {/* Botones */}
+          <div style={{ display: "flex", gap: 12, marginTop: 25, flexWrap: "wrap" }}>
+            <button
+              onClick={handleAddToCart}
+              style={{
+                background: "#fff",
+                color: "#000",
+                padding: "12px 20px",
+                borderRadius: 8,
+                border: "none",
+                fontWeight: "bold",
+                cursor: "pointer",
+                minWidth: 140,
+              }}
+            >
+              Agregar al carrito
+            </button>
+
+            <button
+              onClick={handleWhatsAppBuy}
+              style={{
+                background: "#000",
+                color: "#fff",
+                padding: "12px 20px",
+                borderRadius: 8,
+                border: "1px solid #fff",
+                fontWeight: "bold",
+                cursor: "pointer",
+                minWidth: 140,
+              }}
+            >
+              COMPRAR
+            </button>
+          </div>
+
+          {/* Promo desktop */}
+          {!isMobile && (
+            <div
+              style={{
+                marginTop: 30,
+                padding: "12px 16px",
+                background: "#fff",
+                borderRadius: 8,
+                color: "#000",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                maxWidth: 380,
+              }}
+            >
+              <img
+                src="/promo.svg"
+                alt="Promo"
+                style={{ width: 26, height: 26, filter: "invert(1)" }}
+              />
+              <div style={{ fontSize: "0.9rem" }}>
+                <strong>Llévate dos modelos</strong> que te gusten por solo{" "}
+                <strong>$20</strong>.
+              </div>
             </div>
           )}
         </div>
-
-        {/* ===================================== */}
-        {/* RIGHT SIDE - INFO */}
-        {/* ===================================== */}
-        <div style={{ maxWidth: 500, width: "100%" }}>
-          
-          {isMobile && (
-            <p style={{ fontSize: "1.8rem", fontWeight: "bold", marginBottom: 10 }}>
-              ${product.Precio}
-            </p>
-          )}
-
-          {/* Promo */}
-          <div
-            style={{
-              width: "90%",
-              padding: "14px 18px",
-              background: "white",
-              borderRadius: 0,
-              marginBottom: 20,
-              color: "black",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <img src="/promo-code.svg" width={26} style={{filter: "invert(1)"}}/>
-            Llévate 2 modelos por <strong>$20</strong>
-          </div>
-
-          <h1 style={{ fontSize: "2rem" }}>{product.Nombre}</h1>
-
-          <p><strong>Talla:</strong> {product.Talla}</p>
-          <p><strong>SKU:</strong> {product.SKU}</p>
-
-          {!isMobile && (
-            <p style={{ fontSize: "1.7rem", fontWeight: "bold", margin: "20px 0" }}>
-              ${product.Precio}
-            </p>
-          )}
-
-          {/* Buy button */}
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            style={{
-              display: "inline-block",
-              background: hover ? "black" : "white",
-              color: hover ? "white" : "black",
-              padding: "14px 24px",
-              borderRadius: 8,
-              textDecoration: "none",
-              fontWeight: "bold",
-              marginTop: 25,
-              transition: "all .25s ease",
-            }}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-          >
-            Comprar
-          </a>
-        </div>
       </div>
 
-      {/* Sugerencias */}
-      <div style={{ padding: "0 20px 60px 20px" }}>
+      <div style={{ padding: "0 20px 80px 20px", maxWidth: 1300, margin: "0 auto" }}>
         <Sugerencias />
       </div>
 
       <Footer />
 
-      {/* Fullscreen */}
+      {/* FULLSCREEN VIEWER */}
       {fullscreen && (
         <div
           onClick={() => setFullscreen(false)}

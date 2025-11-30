@@ -3,17 +3,21 @@
 import { useEffect, useState } from "react";
 
 export default function Hero() {
-  const [bg, setBg] = useState("/hero.png");      // imagen desktop
-  const [heroHeight, setHeroHeight] = useState("50vh"); // altura desktop
+  const [bg, setBg] = useState("/hero.png");
+  const [heroHeight, setHeroHeight] = useState("70vh");
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const updateHero = () => {
-      if (window.innerWidth <= 768) {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+
+      if (mobile) {
         setBg("/fondomobile.jpg");
-        setHeroHeight("100vh");   // altura mobile
+        setHeroHeight("100vh");
       } else {
         setBg("/hero.png");
-        setHeroHeight("50vh");    // altura desktop
+        setHeroHeight("70vh"); // 🔥 más alto que antes
       }
     };
 
@@ -26,15 +30,19 @@ export default function Hero() {
     <section
       style={{
         width: "100%",
-        height: heroHeight,     // 👈 se ajusta dinámicamente
+        maxWidth: "100vw",
+        overflow: "hidden", 
+        height: heroHeight,
         backgroundImage: `url(${bg})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: isMobile ? "center" : "top center", // 👌 FIX corte
         backgroundRepeat: "no-repeat",
+        backgroundAttachment: "scroll", // 🔥 FIX scroll overlay
         display: "flex",
         alignItems: "center",
         padding: "0 20px",
         color: "white",
+        boxSizing: "border-box",
       }}
     >
       <div
