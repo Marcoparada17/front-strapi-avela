@@ -6,18 +6,19 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { strapiFetch } from "@/lib/strapi";
 import Sugerencias from "@/app/components/Sugerencias";
-import { addToCart, CartItem } from "@/lib/cart";
-import Toast from "@/app/components/Toast"; // <-- AGREGADO
+import { useCart } from "@/hooks/useCart";
+import Toast from "@/app/components/Toast";
 
 export default function ProductPage() {
   const { slug } = useParams();
   const router = useRouter();
+  const { add } = useCart();
 
   const [product, setProduct] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [toast, setToast] = useState(""); // <-- AGREGADO
+  const [toast, setToast] = useState("");
 
   // swipe refs
   const startX = useRef<number | null>(null);
@@ -47,8 +48,7 @@ export default function ProductPage() {
     load();
   }, [slug]);
 
-  if (!product)
-    return <p style={{ color: "white", padding: 40 }}>Cargando…</p>;
+  if (!product) return <p style={{ color: "white", padding: 40 }}>Cargando…</p>;
 
   const gallery = product.Imagenes || [];
 
@@ -91,19 +91,34 @@ export default function ProductPage() {
 
   const firstImg = gallery[0] ? getImage(gallery[0]) : null;
 
+  // ✅ AGREGA AL CARRITO IGUAL QUE ProductCard
   const handleAddToCart = () => {
-    const item: CartItem = {
-      sku: product.SKU,
-      nombre: product.Nombre,
-      talla: product.Talla,
-      imagenUrl: firstImg
-        ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${firstImg}`
-        : null,
-    };
+    const finalImg =
+      firstImg
+        ? firstImg.startsWith("http")
+          ? firstImg
+          : `${process.env.NEXT_PUBLIC_STRAPI_URL}${firstImg}`
+        : "/placeholder.jpg";
 
-    addToCart(item);
+    // prevenir duplicados (igual que ProductCard)
+    const raw = localStorage.getItem("avela_cart");
+    const cart = raw ? JSON.parse(raw) : [];
+    const exists = cart.some((item: any) => item.slug === String(product.SKU));
 
-    // 🔥 TOAST EN VEZ DE ALERT
+    if (exists) {
+      setToast("Este producto ya está en tu carrito");
+      return;
+    }
+
+    add({
+      title: product.Nombre,
+      price: product.Precio,
+      image: finalImg,
+      slug: String(product.SKU),
+      quantity: 1,
+    });
+
+    window.dispatchEvent(new Event("cartUpdated"));
     setToast("Agregado al carrito 🛒");
   };
 
@@ -117,7 +132,7 @@ export default function ProductPage() {
 
   return (
     <>
-      {toast && <Toast message={toast} />} {/* <-- TOAST AQUÍ */}
+      {toast && <Toast message={toast} />}
 
       <Navbar />
 
@@ -224,6 +239,7 @@ export default function ProductPage() {
                       borderRadius: 12,
                       cursor: "pointer",
                     }}
+                    draggable={false}
                   />
                 </div>
               ))}
@@ -232,12 +248,7 @@ export default function ProductPage() {
         </div>
 
         {/* DERECHA */}
-        <div
-          style={{
-            maxWidth: 500,
-            width: "100%",
-          }}
-        >
+        <div style={{ maxWidth: 500, width: "100%" }}>
           {/* Precio (mobile arriba) */}
           {isMobile && (
             <p
@@ -307,7 +318,14 @@ export default function ProductPage() {
           )}
 
           {/* Botones */}
-          <div style={{ display: "flex", gap: 12, marginTop: 25, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 25,
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={handleAddToCart}
               style={{
@@ -370,7 +388,13 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div style={{ padding: "0 20px 80px 20px", maxWidth: 1300, margin: "0 auto" }}>
+      <div
+        style={{
+          padding: "0 20px 80px 20px",
+          maxWidth: 1300,
+          margin: "0 auto",
+        }}
+      >
         <Sugerencias />
       </div>
 
@@ -400,6 +424,7 @@ export default function ProductPage() {
               objectFit: "contain",
               borderRadius: 12,
             }}
+            draggable={false}
           />
         </div>
       )}
